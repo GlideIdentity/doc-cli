@@ -1,6 +1,6 @@
 # GCS Encrypted File System CLI (`gcs-bench`)
 
-Manage files in a GCS bucket. The daemon auto-starts on first use.
+Manage files in the `glide-shared-fs` GCS bucket. The daemon auto-starts on first use.
 
 ## Commands
 
@@ -9,9 +9,9 @@ Manage files in a GCS bucket. The daemon auto-starts on first use.
 gcs-bench find --name "quarterly report"
 ```
 
-**Read file content:**
+**Read file content** (key includes your prefix):
 ```bash
-gcs-bench read --key "q1-revenue-projections.md"
+gcs-bench read --key "bench/q1-revenue-projections.md"
 ```
 
 **Full-text search:**
@@ -19,15 +19,21 @@ gcs-bench read --key "q1-revenue-projections.md"
 gcs-bench search --query "compliance deadline"
 ```
 
-**Create a file:**
+**Create a file** (name only — prefix is added automatically):
 ```bash
 gcs-bench create --name "meeting-notes.md" --body "The content here"
 ```
 
 **Update a file (appends by default, with CAS):**
 ```bash
-gcs-bench update --key "file.md" --body "New content" --expect-gen 12345
+gcs-bench update --key "bench/file.md" --body "New content" --expect-gen 12345
 ```
+
+## Key Format
+
+- `find` and `search` return keys with your prefix: `bench/filename.md`
+- `read` and `update` require the full key (with prefix)
+- `create` takes just the filename — the prefix is prepended automatically
 
 ## Output
 

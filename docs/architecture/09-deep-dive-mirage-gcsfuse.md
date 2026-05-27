@@ -223,7 +223,7 @@ gcsfuse \
   --file-cache-max-size-mb 1024 \
   --cache-dir /tmp/gcsfuse-cache \
   --implicit-dirs \
-  glidewallet-bench-test /tmp/gcs-docs
+  glide-shared-fs /tmp/gcs-docs
 
 # Now use it like local files
 ls /tmp/gcs-docs/
@@ -304,7 +304,7 @@ brew install gcsfuse
 mkdir -p /tmp/bench-docs
 gcsfuse --only-dir bench --file-cache-max-size-mb 1024 \
   --cache-dir /tmp/gcsfuse-cache \
-  glidewallet-bench-test /tmp/bench-docs
+  glide-shared-fs /tmp/bench-docs
 
 # Modify the local-docs skill to point at the mount
 # skills/local-docs/SKILL.md → change "docs/" to "/tmp/bench-docs/"

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 )
 
@@ -143,7 +144,11 @@ func runCreateViaDaemon(args []string) error {
 	body := fs.String("body", "", "content")
 	fs.Parse(args)
 
-	if result := validateAccess(*name, "create"); !result.allowed {
+	fullKey := *name
+	if p := prefix(); p != "" && !strings.HasPrefix(fullKey, p) {
+		fullKey = p + fullKey
+	}
+	if result := validateAccess(fullKey, "create"); !result.allowed {
 		return outputDenied("create", *name, result.reason)
 	}
 
