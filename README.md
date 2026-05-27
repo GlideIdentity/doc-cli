@@ -1,84 +1,128 @@
 # Document CLI for AI Agents
 
-Fast, secure, multi-user document access for AI agents. Two backends: Google Drive and Google Cloud Storage.
+Fast, secure, multi-user document access for AI agents backed by Google Cloud Storage.
 
-## Why
-
-AI agents need to read and write documents. The standard approaches (MCP servers, FUSE mounts, local file sync) either lack write safety, have no audit trail, or serve stale data. This project provides:
-
-- **Sub-millisecond cached reads** with per-read freshness validation
-- **Optimistic concurrency control** — prevents lost updates when multiple agents write
-- **Per-user folder isolation** — enforced by GCS IAM, not just the CLI
-- **Full audit trail** — every operation logged with agent ID, machine, timestamps
-- **Single binary** — no runtime dependencies
-
-## Quick Start (GCS — recommended)
+## Quick Start (30 seconds)
 
 ```bash
-# Download binary (macOS ARM)
-curl -L -o gcs-bench https://github.com/eranhaggiag/clitest/releases/latest/download/gcs-bench-darwin-arm64
-chmod +x gcs-bench
+# 1. Clone and build
+git clone https://github.com/GlideIdentity/doc-cli.git
+cd doc-cli && git checkout initial-setup
+go build -o gcs-bench ./cmd/gcs-bench/
 
-# First-time setup
-./gcs-bench setup --bucket my-bucket --prefix my-team
+# 2. Setup (one time)
+./gcs-bench setup --bucket glidewallet-bench-test --prefix YOUR_NAME
 
-# Use it — daemon auto-starts
+# 3. Use it (daemon auto-starts, no manual steps)
 ./gcs-bench find --name "revenue"
-./gcs-bench read --key "q1-report.md"
+./gcs-bench read --key "q1-revenue-projections.md"
 ./gcs-bench search --query "compliance deadline"
-./gcs-bench create --name "notes.md" --body "Meeting notes..."
-./gcs-bench update --key "notes.md" --body "New section" --expect-gen 12345
+./gcs-bench create --name "test.md" --body "Hello from $(whoami)"
+./gcs-bench update --key "test.md" --body "Added a section" --expect-gen 12345
 ```
 
-## Multi-User Setup
+That's it. The daemon starts automatically on first command.
+
+## Prerequisites
+
+- **Go 1.21+** — `brew install go` or https://go.dev/dl/
+- **GCP credentials** — either:
+  - `gcloud auth application-default login` (simplest), or
+  - A service account key at `~/.config/gcs-bench/sa-key.json`
+
+## Pre-built Binaries
+
+If you don't want to build from source, grab a binary from `dist/`:
+
+| Platform | Binary |
+|----------|--------|
+| macOS ARM (M1/M2/M3) | `dist/gcs-bench-darwin-arm64` |
+| macOS Intel | `dist/gcs-bench-darwin-amd64` |
+| Linux AMD64 | `dist/gcs-bench-linux-amd64` |
+| Linux ARM64 | `dist/gcs-bench-linux-arm64` |
 
 ```bash
-# Admin adds users with isolated prefixes
-./gcs-bench admin add-user --user alice --prefix team-alpha
-./gcs-bench admin add-user --user bob --prefix team-beta
+cp dist/gcs-bench-darwin-arm64 ./gcs-bench
+chmod +x gcs-bench
+./gcs-bench setup --bucket glidewallet-bench-test --prefix YOUR_NAME
+```
 
-# Each user can only access their own prefix
-# Alice: team-alpha/* (read/write) + shared/* (read-only)
-# Bob:   team-beta/*  (read/write) + shared/* (read-only)
-# Enforced by GCS IAM — can't bypass even with gsutil
+## Admin: Managing Users
+
+Admins can add, remove, and list users. Each user gets an isolated folder in GCS with their own service account — enforced by IAM (can't bypass even with gsutil).
+
+```bash
+# Add a user (creates GCS service account + IAM bindings + config)
+./gcs-bench admin add-user --user alice --prefix team-alpha --bucket glidewallet-bench-test
+
+# List all configured users
+./gcs-bench admin list-users
+
+# Remove a user (deletes SA, revokes all access instantly)
+./gcs-bench admin remove-user --user alice
+```
+
+**Requirements to be an admin:**
+- `gcloud` CLI installed and authenticated (`gcloud auth login`)
+- IAM permissions on the GCP project: `iam.serviceAccounts.create`, `storage.buckets.setIamPolicy`
+- Typically: `roles/iam.serviceAccountAdmin` + `roles/storage.admin` on the project
+
+## What Each User Gets
+
+| | Own prefix (e.g. `team-alpha/`) | Other users' prefixes | `shared/` |
+|---|---|---|---|
+| Read | Yes | **Denied** | Yes |
+| Write | Yes | **Denied** | **Denied** |
+| Delete | Yes | **Denied** | **Denied** |
+
+Enforced at two layers:
+1. **GCS IAM Conditions** — server-side, can't bypass
+2. **CLI validation** — friendly error messages before hitting the API
+
+## Config
+
+Stored at `~/.config/gcs-bench/config.json`:
+
+```json
+{
+  "bucket": "glidewallet-bench-test",
+  "user_prefix": "your-name",
+  "shared_prefixes": ["shared"],
+  "agent_id": "you@your-machine",
+  "credentials": "~/.config/gcs-bench/sa-key.json"
+}
+```
+
+Environment variables override config: `GCS_BUCKET`, `GCS_PREFIX`, `GCS_AGENT_ID`.
+
+## All Commands
+
+```
+gcs-bench setup    --bucket B --prefix P             First-time setup
+gcs-bench admin    [add-user|remove-user|list-users]  Manage users (admin only)
+gcs-bench daemon   [start|stop|status]                Manage daemon
+gcs-bench find     --name "..."                       Find files by name
+gcs-bench read     --key "file.md"                    Read file content
+gcs-bench search   --query "..."                      Full-text search
+gcs-bench create   --name "file.md" --body "..."      Create new file
+gcs-bench update   --key "file.md" --body "..."       Update with conflict detection
 ```
 
 ## Build from Source
 
 ```bash
-make build        # Build both CLIs for current platform
+make build        # Build gcs-bench + gdrive-bench for current platform
 make build-all    # Cross-compile for macOS + Linux (arm64/amd64)
 ```
 
 ## Architecture
 
-See [docs/architecture/](docs/architecture/) for detailed documentation:
+See [docs/architecture/](docs/architecture/) for detailed documentation (10 files covering caching, concurrency, security, permissions, alternatives).
 
-1. [Overview](docs/architecture/01-overview.md) — system diagram, performance summary
-2. [Daemon](docs/architecture/02-daemon-architecture.md) — connection pooling, auto-start
-3. [Caching](docs/architecture/03-caching-and-freshness.md) — ETag validation, freshness
-4. [Concurrency](docs/architecture/04-concurrency-and-safety.md) — CAS, conflict detection
-5. [Shipping](docs/architecture/05-multi-user-shipping.md) — MVP to enterprise checklists
-6. [Security](docs/architecture/06-security-model.md) — least privilege, encryption
-7. [Benchmarks](docs/architecture/07-benchmark-results.md) — measured latency
-8. [Alternatives](docs/architecture/08-alternatives.md) — Mirage, gcsfuse, MCP servers
-9. [Deep Dive](docs/architecture/09-deep-dive-mirage-gcsfuse.md) — Mirage vs gcsfuse
-10. [Permissions](docs/architecture/10-per-user-permissions.md) — IAM + CLI enforcement
+## Audit Log
 
-## Performance
+Every operation is logged to `~/.config/gcs-bench/audit.jsonl`:
 
-| Operation | Drive CLI (optimized) | GCS CLI (target) | Local Files |
-|-----------|----------------------|------------------|-------------|
-| Find      | 12ms                 | 0ms (index)      | <1ms        |
-| Read      | ~500ms (validated)   | ~50ms (validated) | <1ms        |
-| Search    | 13ms                 | 0ms (index)      | 3ms         |
-
-## Two Backends
-
-| | Google Drive (`gdrive-bench`) | GCS (`gcs-bench`) |
-|---|---|---|
-| Best for | Existing Drive users | New deployments, multi-user |
-| Auth | OAuth2 (browser flow) | Service account key (no browser) |
-| Concurrency | modifiedTime-based | Generation-based (true CAS) |
-| Permissions | drive.file scope + folder | IAM Conditions + prefix |
-| Speed | ~500ms validated reads | ~50ms validated reads |
+```json
+{"timestamp":"2026-05-27T06:30:00Z","agent_id":"erik@macbook","machine":"eriks-mbp","user_prefix":"erik","operation":"read","key":"erik/revenue.md","result":"ok","latency_ms":45}
+```
