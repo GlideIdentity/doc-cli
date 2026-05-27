@@ -10,7 +10,16 @@ Fast, secure document CLI for AI agents backed by Google Cloud Storage.
 
 ## Install
 
-### Build from source (recommended)
+### Homebrew (recommended)
+
+```bash
+brew tap glideidentity/tap
+brew install glideidentity/tap/gcs-bench
+```
+
+### Build from source
+
+Requires Go 1.21+:
 
 ```bash
 git clone https://github.com/GlideIdentity/doc-cli.git
@@ -29,7 +38,6 @@ Binaries land in `dist/`.
 
 ## Prerequisites
 
-- **Go 1.21+** (build from source)
 - **`gcloud` CLI** (for admin commands and initial auth)
 - **GCP project**: `shared-file-system` (GlideIdentity org)
 - **Bucket**: `glide-shared-fs`
