@@ -1,69 +1,84 @@
-# Google Drive Benchmark: Custom Go CLI vs. Local Markdown Files
+# Document CLI for AI Agents
 
-Benchmarks comparing agent performance when using a native Go CLI to access Google Drive vs. reading pre-synced local markdown files.
+Fast, secure, multi-user document access for AI agents. Two backends: Google Drive and Google Cloud Storage.
 
-## Hypothesis
+## Why
 
-For common document operations (find, read, search, create, update), an agent working with pre-synced local markdown files is significantly faster, cheaper, and more reliable than an agent using a CLI — even a purpose-built native Go binary.
+AI agents need to read and write documents. The standard approaches (MCP servers, FUSE mounts, local file sync) either lack write safety, have no audit trail, or serve stale data. This project provides:
 
-## Quick Start
+- **Sub-millisecond cached reads** with per-read freshness validation
+- **Optimistic concurrency control** — prevents lost updates when multiple agents write
+- **Per-user folder isolation** — enforced by GCS IAM, not just the CLI
+- **Full audit trail** — every operation logged with agent ID, machine, timestamps
+- **Single binary** — no runtime dependencies
 
-### 1. Build the CLI
-
-```bash
-go build -o gdrive-bench ./cmd/gdrive-bench/
-```
-
-### 2. Authenticate
-
-Place your Google OAuth2 `credentials.json` in `~/.config/gdrive-bench/` and run:
+## Quick Start (GCS — recommended)
 
 ```bash
-./gdrive-bench auth
+# Download binary (macOS ARM)
+curl -L -o gcs-bench https://github.com/eranhaggiag/clitest/releases/latest/download/gcs-bench-darwin-arm64
+chmod +x gcs-bench
+
+# First-time setup
+./gcs-bench setup --bucket my-bucket --prefix my-team
+
+# Use it — daemon auto-starts
+./gcs-bench find --name "revenue"
+./gcs-bench read --key "q1-report.md"
+./gcs-bench search --query "compliance deadline"
+./gcs-bench create --name "notes.md" --body "Meeting notes..."
+./gcs-bench update --key "notes.md" --body "New section" --expect-gen 12345
 ```
 
-Set the target folder:
+## Multi-User Setup
 
 ```bash
-export GDRIVE_FOLDER=your-folder-id
+# Admin adds users with isolated prefixes
+./gcs-bench admin add-user --user alice --prefix team-alpha
+./gcs-bench admin add-user --user bob --prefix team-beta
+
+# Each user can only access their own prefix
+# Alice: team-alpha/* (read/write) + shared/* (read-only)
+# Bob:   team-beta/*  (read/write) + shared/* (read-only)
+# Enforced by GCS IAM — can't bypass even with gsutil
 ```
 
-### 3. Run the raw benchmark
+## Build from Source
 
 ```bash
-npx tsx scripts/raw-benchmark.ts
+make build        # Build both CLIs for current platform
+make build-all    # Cross-compile for macOS + Linux (arm64/amd64)
 ```
 
-### 4. Run agent-driven benchmark
+## Architecture
 
-Follow the protocol in `benchmark/protocol.md` — run each task through both the `gdrive-cli` and `local-docs` skills.
+See [docs/architecture/](docs/architecture/) for detailed documentation:
 
-### 5. Analyze results
+1. [Overview](docs/architecture/01-overview.md) — system diagram, performance summary
+2. [Daemon](docs/architecture/02-daemon-architecture.md) — connection pooling, auto-start
+3. [Caching](docs/architecture/03-caching-and-freshness.md) — ETag validation, freshness
+4. [Concurrency](docs/architecture/04-concurrency-and-safety.md) — CAS, conflict detection
+5. [Shipping](docs/architecture/05-multi-user-shipping.md) — MVP to enterprise checklists
+6. [Security](docs/architecture/06-security-model.md) — least privilege, encryption
+7. [Benchmarks](docs/architecture/07-benchmark-results.md) — measured latency
+8. [Alternatives](docs/architecture/08-alternatives.md) — Mirage, gcsfuse, MCP servers
+9. [Deep Dive](docs/architecture/09-deep-dive-mirage-gcsfuse.md) — Mirage vs gcsfuse
+10. [Permissions](docs/architecture/10-per-user-permissions.md) — IAM + CLI enforcement
 
-```bash
-npx tsx benchmark/analyze.ts
-```
+## Performance
 
-## Project Structure
+| Operation | Drive CLI (optimized) | GCS CLI (target) | Local Files |
+|-----------|----------------------|------------------|-------------|
+| Find      | 12ms                 | 0ms (index)      | <1ms        |
+| Read      | ~500ms (validated)   | ~50ms (validated) | <1ms        |
+| Search    | 13ms                 | 0ms (index)      | 3ms         |
 
-```
-cmd/gdrive-bench/     Custom Go CLI (native binary, ~15ms startup)
-docs/                 Pre-synced local markdown test documents
-skills/
-  gdrive-cli/         Cursor skill for CLI-based operations
-  local-docs/         Cursor skill for local file operations
-benchmark/
-  protocol.md         5-task benchmark protocol
-  results/            JSON result files
-  analyze.ts          Results analysis script
-scripts/
-  raw-benchmark.ts    Script-driven latency benchmark
-```
+## Two Backends
 
-## Metrics
-
-- **Latency**: wall-clock time per task
-- **Token usage**: input + output tokens per task
-- **Tool calls**: number of tool invocations per task
-- **Success rate**: pass/fail per task
-- **CLI self-timing**: `_elapsed_ms` from the Go binary (API latency only)
+| | Google Drive (`gdrive-bench`) | GCS (`gcs-bench`) |
+|---|---|---|
+| Best for | Existing Drive users | New deployments, multi-user |
+| Auth | OAuth2 (browser flow) | Service account key (no browser) |
+| Concurrency | modifiedTime-based | Generation-based (true CAS) |
+| Permissions | drive.file scope + folder | IAM Conditions + prefix |
+| Speed | ~500ms validated reads | ~50ms validated reads |

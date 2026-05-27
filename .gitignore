@@ -1,4 +1,7 @@
-gdrive-bench
+/gdrive-bench
+/gcs-bench
+/dist/
 benchmark/results/*.json
 credentials.json
 token.json
+sa-key.json

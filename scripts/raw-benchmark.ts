@@ -8,12 +8,15 @@ const execFileAsync = promisify(execFile);
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const ITERATIONS = 10;
-const CLI_PATH = join(__dirname, "..", "gdrive-bench");
+const DRIVE_CLI = join(__dirname, "..", "gdrive-bench");
+const GCS_CLI = join(__dirname, "..", "gcs-bench");
 const DOCS_DIR = join(__dirname, "..", "docs");
+
+type PathLabel = "drive-cli" | "gcs-cli" | "local";
 
 interface TimingResult {
   operation: string;
-  path: "cli" | "local";
+  path: PathLabel;
   times_ms: number[];
   avg_ms: number;
   p50_ms: number;
@@ -53,12 +56,16 @@ function stats(times: number[]): Omit<TimingResult, "operation" | "path"> {
 async function benchmarkFind(): Promise<TimingResult[]> {
   console.log("Benchmarking: Find...");
 
-  const cliTimes: number[] = [];
+  const driveTimes: number[] = [];
+  const gcsTimes: number[] = [];
   const localTimes: number[] = [];
 
   for (let i = 0; i < ITERATIONS; i++) {
-    const cliTime = await timeExec([CLI_PATH, "find", "--name", "revenue"]);
-    if (cliTime >= 0) cliTimes.push(cliTime);
+    const dt = await timeExec([DRIVE_CLI, "find", "--name", "revenue"]);
+    if (dt >= 0) driveTimes.push(dt);
+
+    const gt = await timeExec([GCS_CLI, "find", "--name", "revenue"]);
+    if (gt >= 0) gcsTimes.push(gt);
 
     localTimes.push(
       await timeLocal(async () => {
@@ -69,7 +76,8 @@ async function benchmarkFind(): Promise<TimingResult[]> {
   }
 
   const results: TimingResult[] = [];
-  if (cliTimes.length > 0) results.push({ operation: "find", path: "cli", ...stats(cliTimes) });
+  if (driveTimes.length > 0) results.push({ operation: "find", path: "drive-cli", ...stats(driveTimes) });
+  if (gcsTimes.length > 0) results.push({ operation: "find", path: "gcs-cli", ...stats(gcsTimes) });
   results.push({ operation: "find", path: "local", ...stats(localTimes) });
   return results;
 }
@@ -81,14 +89,19 @@ async function benchmarkRead(): Promise<TimingResult[]> {
   const index = JSON.parse(indexRaw);
   const firstDoc = index[0];
 
-  const cliTimes: number[] = [];
+  const driveTimes: number[] = [];
+  const gcsTimes: number[] = [];
   const localTimes: number[] = [];
 
   for (let i = 0; i < ITERATIONS; i++) {
     if (firstDoc.driveId) {
-      const cliTime = await timeExec([CLI_PATH, "read", "--id", firstDoc.driveId]);
-      if (cliTime >= 0) cliTimes.push(cliTime);
+      const dt = await timeExec([DRIVE_CLI, "read", "--id", firstDoc.driveId]);
+      if (dt >= 0) driveTimes.push(dt);
     }
+
+    const gt = await timeExec([GCS_CLI, "read", "--key", firstDoc.localPath]);
+    if (gt >= 0) gcsTimes.push(gt);
+
     localTimes.push(
       await timeLocal(async () => {
         await readFile(join(DOCS_DIR, firstDoc.localPath), "utf-8");
@@ -97,7 +110,8 @@ async function benchmarkRead(): Promise<TimingResult[]> {
   }
 
   const results: TimingResult[] = [];
-  if (cliTimes.length > 0) results.push({ operation: "read", path: "cli", ...stats(cliTimes) });
+  if (driveTimes.length > 0) results.push({ operation: "read", path: "drive-cli", ...stats(driveTimes) });
+  if (gcsTimes.length > 0) results.push({ operation: "read", path: "gcs-cli", ...stats(gcsTimes) });
   results.push({ operation: "read", path: "local", ...stats(localTimes) });
   return results;
 }
@@ -105,12 +119,16 @@ async function benchmarkRead(): Promise<TimingResult[]> {
 async function benchmarkSearch(): Promise<TimingResult[]> {
   console.log("Benchmarking: Search...");
 
-  const cliTimes: number[] = [];
+  const driveTimes: number[] = [];
+  const gcsTimes: number[] = [];
   const localTimes: number[] = [];
 
   for (let i = 0; i < ITERATIONS; i++) {
-    const cliTime = await timeExec([CLI_PATH, "search", "--query", "compliance deadline"]);
-    if (cliTime >= 0) cliTimes.push(cliTime);
+    const dt = await timeExec([DRIVE_CLI, "search", "--query", "compliance deadline"]);
+    if (dt >= 0) driveTimes.push(dt);
+
+    const gt = await timeExec([GCS_CLI, "search", "--query", "compliance deadline"]);
+    if (gt >= 0) gcsTimes.push(gt);
 
     localTimes.push(
       await timeLocal(async () => {
@@ -125,7 +143,8 @@ async function benchmarkSearch(): Promise<TimingResult[]> {
   }
 
   const results: TimingResult[] = [];
-  if (cliTimes.length > 0) results.push({ operation: "search", path: "cli", ...stats(cliTimes) });
+  if (driveTimes.length > 0) results.push({ operation: "search", path: "drive-cli", ...stats(driveTimes) });
+  if (gcsTimes.length > 0) results.push({ operation: "search", path: "gcs-cli", ...stats(gcsTimes) });
   results.push({ operation: "search", path: "local", ...stats(localTimes) });
   return results;
 }
@@ -150,18 +169,17 @@ async function main() {
   }
 
   // Speedup summary
-  console.log("\n## Speedup (CLI / Local)\n");
+  console.log("\n## Speedup vs Local\n");
   const operations = [...new Set(results.map((r) => r.operation))];
   for (const op of operations) {
-    const cli = results.find((r) => r.operation === op && r.path === "cli");
-    const local = results.find(
-      (r) => r.operation === op && r.path === "local"
-    );
-    if (cli && local && local.avg_ms > 0) {
-      console.log(
-        `- **${op}**: ${(cli.avg_ms / local.avg_ms).toFixed(0)}x slower via CLI`
-      );
-    }
+    const local = results.find((r) => r.operation === op && r.path === "local");
+    if (!local || local.avg_ms === 0) continue;
+    const drive = results.find((r) => r.operation === op && r.path === "drive-cli");
+    const gcs = results.find((r) => r.operation === op && r.path === "gcs-cli");
+    const parts: string[] = [];
+    if (drive) parts.push(`Drive ${(drive.avg_ms / Math.max(local.avg_ms, 1)).toFixed(0)}x`);
+    if (gcs) parts.push(`GCS ${(gcs.avg_ms / Math.max(local.avg_ms, 1)).toFixed(0)}x`);
+    if (parts.length > 0) console.log(`- **${op}**: ${parts.join(", ")} slower than local`);
   }
 
   await mkdir(join(__dirname, "..", "benchmark", "results"), {
