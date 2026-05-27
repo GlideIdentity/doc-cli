@@ -38,7 +38,7 @@ Binaries land in `dist/`.
 
 ## Prerequisites
 
-- **`gcloud` CLI** (for admin commands and initial auth)
+- `**gcloud` CLI** (for admin commands and initial auth)
 - **GCP project**: `shared-file-system` (GlideIdentity org)
 - **Bucket**: `glide-shared-fs`
 
@@ -130,7 +130,7 @@ All operations are logged to `~/.config/gcs-bench/audit.jsonl`:
 
 ## Architecture
 
-See [`docs/architecture/`](docs/architecture/) for detailed documentation:
+See `[docs/architecture/](docs/architecture/)` for detailed documentation:
 
 1. [Overview & system diagram](docs/architecture/01-overview.md)
 2. [Daemon architecture](docs/architecture/02-daemon-architecture.md)
@@ -143,10 +143,13 @@ See [`docs/architecture/`](docs/architecture/) for detailed documentation:
 
 ## GCP Project
 
-| Resource | Value |
-|----------|-------|
-| Project | `shared-file-system` |
-| Org | GlideIdentity |
-| Bucket | `glide-shared-fs` |
-| Region | `me-west1` |
+
+| Resource   | Value                                                         |
+| ---------- | ------------------------------------------------------------- |
+| Project    | `shared-file-system`                                          |
+| Org        | GlideIdentity                                                 |
+| Bucket     | `glide-shared-fs`                                             |
+| Region     | `me-west1`                                                    |
 | SA pattern | `gcs-bench-{user}@shared-file-system.iam.gserviceaccount.com` |
+
+
