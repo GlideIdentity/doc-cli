@@ -1,0 +1,19 @@
+README.md
+  s_e21c364576eb3d::t_09c0387f0562ec 13-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d273c4510b8333fd2a916d1d57fe005d7734fa04",
+  "prompts": {},
+  "sessions": {
+    "s_e21c364576eb3d": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "a7ab4294-fc6f-4301-a2bd-0f8640e3f16d",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Eran Haggiag <eran@glideidentity.com>"
+    }
+  }
+}
