@@ -1,0 +1,19 @@
+README.md
+  s_740280940b054b::t_aba6cb1a291f79 14,47,56,88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "9dc526b3eae3f94a13d5cae1779e476d1c1b3254",
+  "prompts": {},
+  "sessions": {
+    "s_740280940b054b": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "0d212a81-1114-47b7-aaf7-ec8161c38417",
+        "model": "claude-4.6-opus-high-thinking"
+      },
+      "human_author": "Eran Haggiag <eran@glideidentity.com>"
+    }
+  }
+}
