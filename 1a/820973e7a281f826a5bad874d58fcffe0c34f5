@@ -1,0 +1,20 @@
+cmd/gcs-bench/cli_test.go
+  s_8133bc3c607f06::t_28f17dac651594 259-262,264-267,269-270,272-283,285,290
+  s_8133bc3c607f06::t_4a3aaabbc40d32 1-258,263,268,271,284,286-289,291-584
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1a820973e7a281f826a5bad874d58fcffe0c34f5",
+  "prompts": {},
+  "sessions": {
+    "s_8133bc3c607f06": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "2b7329fe-8ec8-44ae-86c0-d02008473d35",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Eran Haggiag <eran@glideidentity.com>"
+    }
+  }
+}
