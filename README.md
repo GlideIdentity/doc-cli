@@ -11,7 +11,7 @@ cd doc-cli && git checkout initial-setup
 go build -o gcs-bench ./cmd/gcs-bench/
 
 # 2. Setup (one time)
-./gcs-bench setup --bucket glidewallet-bench-test --prefix YOUR_NAME
+./gcs-bench setup --bucket glide-shared-fs --prefix YOUR_NAME
 
 # 3. Use it (daemon auto-starts, no manual steps)
 ./gcs-bench find --name "revenue"
@@ -44,7 +44,7 @@ If you don't want to build from source, grab a binary from `dist/`:
 ```bash
 cp dist/gcs-bench-darwin-arm64 ./gcs-bench
 chmod +x gcs-bench
-./gcs-bench setup --bucket glidewallet-bench-test --prefix YOUR_NAME
+./gcs-bench setup --bucket glide-shared-fs --prefix YOUR_NAME
 ```
 
 ## Admin: Managing Users
@@ -53,7 +53,7 @@ Admins can add, remove, and list users. Each user gets an isolated folder in GCS
 
 ```bash
 # Add a user (creates GCS service account + IAM bindings + config)
-./gcs-bench admin add-user --user alice --prefix team-alpha --bucket glidewallet-bench-test
+./gcs-bench admin add-user --user alice --prefix team-alpha --bucket glide-shared-fs
 
 # List all configured users
 ./gcs-bench admin list-users
@@ -85,7 +85,7 @@ Stored at `~/.config/gcs-bench/config.json`:
 
 ```json
 {
-  "bucket": "glidewallet-bench-test",
+  "bucket": "glide-shared-fs",
   "user_prefix": "your-name",
   "shared_prefixes": ["shared"],
   "agent_id": "you@your-machine",
